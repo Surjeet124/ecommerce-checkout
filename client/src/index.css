@@ -1,0 +1,19 @@
+* { box-sizing: border-box; font-family: system-ui, sans-serif; }
+body { margin: 0; background: #fafafa; color: #222; }
+
+.shop { max-width: 960px; margin: 0 auto; padding: 24px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.product-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; text-align: center; }
+.product-card img { width: 100%; border-radius: 6px; margin-bottom: 8px; }
+.product-card button { margin-top: 8px; padding: 6px 12px; cursor: pointer; }
+
+.cart-drawer { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+.cart-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #eee; }
+.cart-row input { width: 50px; }
+
+.success, .cancel { max-width: 480px; margin: 60px auto; text-align: center; }
+.error { color: #c0392b; }
+button { background: #111; color: #fff; border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
