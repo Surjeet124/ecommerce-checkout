@@ -14,12 +14,14 @@ const PORT = process.env.PORT || 4242;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // --- Mock product catalog (swap for your real DB) ---------------------
-const PRODUCTS = [
-  { id: 'p1', name: 'Wireless Headphones', price: 2499, image: 'https://placehold.co/300x300?text=Headphones' },
-  { id: 'p2', name: 'Mechanical Keyboard', price: 3999, image: 'https://placehold.co/300x300?text=Keyboard' },
-  { id: 'p3', name: 'Smart Watch', price: 5499, image: 'https://placehold.co/300x300?text=Watch' },
-  { id: 'p4', name: 'Backpack', price: 1899, image: 'https://placehold.co/300x300?text=Backpack' },
+
+ const PRODUCTS = [
+  { id: 'p1', name: 'Wireless Headphones', price: 2499, image: 'https://picsum.photos/seed/headphones/300/300' },
+  { id: 'p2', name: 'Mechanical Keyboard', price: 3999, image: 'https://picsum.photos/seed/keyboard/300/300' },
+  { id: 'p3', name: 'Smart Watch', price: 5499, image: 'https://picsum.photos/seed/watch/300/300' },
+  { id: 'p4', name: 'Backpack', price: 1899, image: 'https://picsum.photos/seed/backpack/300/300' },
 ];
+
 // price is in paise (smallest INR unit) -> 2499 = ₹24.99
 
 // --- In-memory "orders" store (swap for a real DB in production) ------
