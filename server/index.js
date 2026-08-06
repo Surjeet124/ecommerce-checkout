@@ -16,10 +16,10 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 // --- Mock product catalog (swap for your real DB) ---------------------
 
  const PRODUCTS = [
-  { id: 'p1', name: 'Wireless Headphones', price: 2499, image: 'https://picsum.photos/seed/headphones/300/300' },
-  { id: 'p2', name: 'Mechanical Keyboard', price: 3999, image: 'https://picsum.photos/seed/keyboard/300/300' },
-  { id: 'p3', name: 'Smart Watch', price: 5499, image: 'https://picsum.photos/seed/watch/300/300' },
-  { id: 'p4', name: 'Backpack', price: 1899, image: 'https://picsum.photos/seed/backpack/300/300' },
+  { id: 'p1', name: 'Wireless Headphones', price: 2499, image: 'https://images.unsplash.com/photo-1641048930621-ab5d225ae5b0?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8d2lyZWxlc3MlMjBoZWFkcGhvbmVzfGVufDB8fDB8fHww' },
+  { id: 'p2', name: 'Mechanical Keyboard', price: 3999, image: 'https://plus.unsplash.com/premium_photo-1664194583917-b0ba07c4ce2a?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fE1lY2hhbmljYWwlMjBLZXlib2FyZHxlbnwwfHwwfHx8MA%3D%3D' },
+  { id: 'p3', name: 'Smart Watch', price: 5499, image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8U21hcnQlMjBXYXRjaHxlbnwwfHwwfHx8MA%3D%3D' },
+  { id: 'p3', name: 'Backpack', price: 1899, image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmFja3BhY2t8ZW58MHx8MHx8fDA%3D'},
 ];
 
 // price is in paise (smallest INR unit) -> 2499 = ₹24.99
