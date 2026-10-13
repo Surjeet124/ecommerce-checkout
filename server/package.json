@@ -1,16 +1,20 @@
 {
   "name": "ecommerce-checkout-server",
-  "version": "1.0.0",
-  "description": "Express backend for E-commerce checkout with Stripe (test mode)",
+  "version": "2.0.0",
+  "description": "Express + MongoDB backend for the e-commerce checkout app (JWT auth, cart, orders, Razorpay test mode)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "seed": "node seed.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.0",
     "razorpay": "^2.9.4"
   },
   "devDependencies": {

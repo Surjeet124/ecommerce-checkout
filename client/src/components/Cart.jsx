@@ -1,104 +1,123 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api, formatPrice } from '../api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4242';
+// The Razorpay script is loaded only when someone actually checks out
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
-export default function Cart() {
-  const { cart, removeFromCart, updateQty, totalPrice, clearCart } = useCart();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export default function Cart({ onClose }) {
+  const { cart, totalPrice, updateQty, removeFromCart, reloadCart, error: cartError, clearError } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleCheckout() {
-    setError(null);
+    setError('');
+    clearError();
+
+    if (!user) {
+      onClose();
+      navigate('/login', { state: { from: '/' } });
+      return;
+    }
+
     setLoading(true);
     try {
-      // 1. Ask our backend to create a Razorpay order (server re-prices
-      //    everything from its own catalog — never trust client prices).
-      const items = cart.map((item) => ({ id: item.id, qty: item.qty }));
-      const res = await fetch(`${API_URL}/api/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
-      });
-      const order = await res.json();
-      if (!res.ok) throw new Error(order.error || 'Could not start checkout');
+      if (!(await loadRazorpay())) throw new Error('Could not load the payment window. Check your internet connection.');
 
-      // 2. Open the Razorpay Checkout modal with that order.
-      const options = {
+      // The server builds the order from the saved cart and prices it itself
+      const order = await api('/api/orders/create', { method: 'POST' });
+
+      const razorpay = new window.Razorpay({
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'Demo Store',
-        description: 'Order payment',
         order_id: order.orderId,
-        handler: async function (response) {
-          // 3. Payment succeeded on Razorpay's side — verify the
-          //    signature server-side before treating it as paid.
+        name: 'Demo Store',
+        description: 'Order payment (test mode)',
+        prefill: { name: user.name, email: user.email },
+        handler: async (response) => {
           try {
-            const verifyRes = await fetch(`${API_URL}/api/verify-payment`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(response),
-            });
-            const verifyData = await verifyRes.json();
-            if (verifyData.verified) {
-              clearCart();
-              navigate(`/success?order_id=${order.orderId}`);
-            } else {
-              navigate('/cancel');
-            }
+            await api('/api/orders/verify', { method: 'POST', body: response });
+            await reloadCart();
+            onClose();
+            navigate(`/success?order_id=${order.dbOrderId}`);
           } catch {
             navigate('/cancel');
           }
         },
-        modal: {
-          ondismiss: function () {
-            // User closed the modal without paying
-            setLoading(false);
-          },
-        },
-        theme: { color: '#111111' },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function () {
-        navigate('/cancel');
+        modal: { ondismiss: () => setLoading(false) },
       });
-      rzp.open();
-      setLoading(false);
+
+      razorpay.on('payment.failed', () => navigate('/cancel'));
+      razorpay.open();
     } catch (err) {
       setError(err.message);
       setLoading(false);
     }
   }
 
-  if (cart.length === 0) return <p>Your cart is empty.</p>;
-
   return (
-    <div className="cart">
-      {cart.map((item) => (
-        <div className="cart-row" key={item.id}>
-          <span>{item.name}</span>
-          <input
-            type="number"
-            min="1"
-            value={item.qty}
-            onChange={(e) => updateQty(item.id, Number(e.target.value))}
-          />
-          <span>₹{((item.price * item.qty) / 100).toFixed(2)}</span>
-          <button onClick={() => removeFromCart(item.id)}>Remove</button>
-        </div>
-      ))}
+    <aside className="cart-drawer">
+      <div className="cart-header">
+        <h2>Your Cart</h2>
+        <button className="link-btn" onClick={onClose}>
+          Close
+        </button>
+      </div>
 
-      <h3>Total: ₹{(totalPrice / 100).toFixed(2)}</h3>
+      {cart.length === 0 ? (
+        <p className="notice">Your cart is empty.</p>
+      ) : (
+        <>
+          <ul className="cart-list">
+            {cart.map((item) => (
+              <li key={item.id} className="cart-row">
+                <img src={item.image} alt="" />
+                <div className="cart-info">
+                  <strong>{item.name}</strong>
+                  <span>{formatPrice(item.price)}</span>
+                  <div className="qty">
+                    <button onClick={() => updateQty(item.id, item.qty - 1)} aria-label="Decrease quantity">
+                      −
+                    </button>
+                    <span>{item.qty}</span>
+                    <button onClick={() => updateQty(item.id, item.qty + 1)} aria-label="Increase quantity">
+                      +
+                    </button>
+                    <button className="link-btn" onClick={() => removeFromCart(item.id)}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
 
-      {error && <p className="error">{error}</p>}
+          <div className="cart-total">
+            <span>Total</span>
+            <strong>{formatPrice(totalPrice)}</strong>
+          </div>
 
-      <button onClick={handleCheckout} disabled={loading}>
-        {loading ? 'Opening checkout…' : 'Pay with Razorpay'}
-      </button>
-    </div>
+          {(error || cartError) && <p className="error">{error || cartError}</p>}
+
+          <button className="primary" onClick={handleCheckout} disabled={loading}>
+            {loading ? 'Please wait…' : user ? 'Pay with Razorpay' : 'Log in to checkout'}
+          </button>
+        </>
+      )}
+    </aside>
   );
 }
