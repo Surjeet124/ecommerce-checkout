@@ -1,111 +1,111 @@
-# E-commerce Checkout — Razorpay Test Mode (End-to-End)
+# E-commerce App (MERN) — Razorpay Test Mode
 
-Full flow: product catalog → cart (React Context) → Razorpay Order (server-side)
-→ Razorpay Checkout modal (embedded, no redirect) → signature verification
-→ success/cancel page.
+A full-stack e-commerce app: **MongoDB, Express, React, Node.js**. Users can register, browse and search products, keep a cart that is saved to their account, pay with Razorpay (test mode) and see their order history. Admins can manage products and view all orders.
 
-## Folder structure
+## Features
+
+- **Auth:** register / login with bcrypt-hashed passwords and JWT (7-day tokens); protected routes on the client and middleware on the server; role-based access (`user` / `admin`)
+- **Products:** search and category filter; admin add / edit / delete; stock tracking
+- **Cart:** saved in MongoDB per user; guests use a local cart that is merged into the saved one on login
+- **Checkout:** Razorpay Orders API + embedded Checkout modal; the server prices the order from the database and verifies the payment signature (HMAC SHA-256, constant-time compare)
+- **Orders:** each order stores a snapshot of items and prices; stock is reduced once, only after a verified payment
+- **Security basics:** passwords never returned (`select: false`), request-body field whitelisting, search input escaped before use in a regex, generic login error message, JSON body size limit
+
+## Architecture
 
 ```
-ecommerce-checkout/
-├── server/          Express API (creates Razorpay orders, verifies payment)
-│   ├── index.js
-│   ├── package.json
-│   └── .env.example
-└── client/          React (Vite) storefront
-    ├── src/
-    │   ├── components/ (ProductList, Cart, Success, Cancel)
-    │   ├── context/CartContext.jsx
-    │   ├── App.jsx
-    │   └── main.jsx
-    ├── package.json
-    └── .env.example
+React (Vite)  ──HTTP/JSON + JWT──▶  Express API  ──Mongoose──▶  MongoDB Atlas
+   │                                    │
+   └── Razorpay Checkout modal          └── Razorpay Orders API (create order, verify signature)
 ```
 
-## 1. Get Razorpay test keys
+```
+server/
+├── index.js            app setup, routes, error handling
+├── config/db.js        MongoDB connection
+├── models/             User, Product, Cart, Order
+├── middleware/         auth (protect, adminOnly), errorHandler
+├── routes/             auth, products, cart, orders
+└── seed.js             creates the first admin + sample products
+client/src/
+├── api.js              fetch wrapper (adds JWT, parses errors)
+├── context/            AuthContext, CartContext
+├── components/         ProductList, Cart, ProtectedRoute
+└── pages/              Login, Register, Orders, Admin, Success, Cancel
+```
 
-1. Sign up at https://dashboard.razorpay.com (free, no business docs
-   needed to access Test Mode).
-2. Make sure the **Test Mode** toggle (top-right of dashboard) is ON.
-3. Go to **Settings → API Keys** (or **Developers → API Keys** depending
-   on the dashboard version) and generate a Test key.
-4. Copy the **Key Id** (`rzp_test_...`) and **Key Secret**.
+## Data model
 
-## 2. Backend setup
+| Model     | Main fields                                                                    |
+| --------- | ------------------------------------------------------------------------------ |
+| `User`    | name, email (unique), password (hash), role                                    |
+| `Product` | name, price (paise), stock, category, image, description                       |
+| `Cart`    | user (unique), items: [{ product → Product, qty }]                             |
+| `Order`   | user → User, items snapshot [{ name, price, qty }], amount, status, Razorpay IDs |
+
+Prices are stored in **paise** (integer) to avoid floating-point errors.
+
+## API
+
+| Method | Endpoint                       | Access | Purpose                                  |
+| ------ | ------------------------------ | ------ | ---------------------------------------- |
+| POST   | `/api/auth/register`           | public | create account                           |
+| POST   | `/api/auth/login`              | public | log in, returns JWT                      |
+| GET    | `/api/auth/me`                 | user   | current user                             |
+| GET    | `/api/products`                | public | list (`?search=&category=`)              |
+| GET    | `/api/products/categories`     | public | distinct categories                      |
+| GET    | `/api/products/:id`            | public | one product                              |
+| POST   | `/api/products`                | admin  | add product                              |
+| PUT    | `/api/products/:id`            | admin  | edit product                             |
+| DELETE | `/api/products/:id`            | admin  | delete product                           |
+| GET    | `/api/cart`                    | user   | saved cart                               |
+| POST   | `/api/cart/items`              | user   | add item `{ productId, qty }`            |
+| PATCH  | `/api/cart/items/:productId`   | user   | set quantity `{ qty }`                   |
+| DELETE | `/api/cart/items/:productId`   | user   | remove item                              |
+| DELETE | `/api/cart`                    | user   | empty cart                               |
+| POST   | `/api/cart/merge`              | user   | merge guest cart after login             |
+| POST   | `/api/orders/create`           | user   | create Razorpay order from saved cart    |
+| POST   | `/api/orders/verify`           | user   | verify payment signature, mark paid      |
+| GET    | `/api/orders`                  | user   | my orders                                |
+| GET    | `/api/orders/:id`              | user   | one order (owner or admin)               |
+| GET    | `/api/orders/all`              | admin  | all orders                               |
+
+## Run locally
+
+1. Create a free cluster on [MongoDB Atlas](https://www.mongodb.com/atlas), add a database user, and allow your IP (Network Access).
+2. Get Razorpay **test** keys from the Razorpay dashboard (Test Mode → API Keys).
+
+**Backend**
 
 ```bash
 cd server
 npm install
-copy .env.example .env      # Windows PowerShell
-# or: cp .env.example .env   (Mac/Linux)
+cp .env.example .env     # then fill in MONGO_URI, JWT_SECRET, Razorpay keys, ADMIN_*
+npm run seed             # creates the admin account + sample products
+npm run dev              # http://localhost:4242
 ```
 
-Open `.env` and paste your keys:
-```
-RAZORPAY_KEY_ID=rzp_test_...
-RAZORPAY_KEY_SECRET=your_secret_here
-```
+**Frontend**
 
-Start the server:
-```bash
-npm start
-```
-Runs on `http://localhost:4242`.
-
-## 3. Frontend setup
-
-Open a **new terminal** (keep the server one running):
 ```bash
 cd client
 npm install
-copy .env.example .env
-npm run dev
+cp .env.example .env     # VITE_API_URL=http://localhost:4242
+npm run dev              # http://localhost:5173
 ```
-Opens on `http://localhost:5173`.
 
-## 4. Test the flow
+**Test payment:** card `4111 1111 1111 1111`, any future expiry, any CVV. Failure card: `4000 0000 0000 0002`.
 
-1. Add products to cart, click **Pay with Razorpay** — a checkout modal
-   opens (no page redirect).
-2. In the modal, choose **Card** and use Razorpay's test card:
-   - Card number: `4111 1111 1111 1111`
-   - Expiry: any future date
-   - CVV: any 3 digits
-   - Name: any
-   - OTP (if asked): `1234` (or click through the test OTP screen)
-3. On success, you land on `/success`, which confirms via the backend.
-4. To simulate a failure, use test card `4000 0000 0000 0002`, or just
-   close the modal (routes to `/cancel`).
+## Deploy
 
-More test card numbers: https://razorpay.com/docs/payments/payments/test-card-details/
+- **Database:** MongoDB Atlas (allow `0.0.0.0/0` or Render's outbound IPs under Network Access)
+- **Backend:** Render web service — root `server`, build `npm install`, start `npm start`; set `MONGO_URI`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `CLIENT_URL` (your Vercel URL), `NODE_ENV=production`
+- **Frontend:** Vercel — root `client`, set `VITE_API_URL` to the Render URL. Add a `vercel.json` rewrite so React Router paths such as `/orders` work on refresh:
 
-## How to explain this in an interview
+  ```json
+  { "rewrites": [{ "source": "/(.*)", "destination": "/" }] }
+  ```
 
-- **Why Razorpay Orders API + Checkout modal instead of a hosted redirect
-  page?** Razorpay's flow keeps the user on your site (embedded modal),
-  which is common for Indian payment UX. The backend creates an `order`
-  first — this locks in the amount server-side so it can't be tampered
-  with from the browser.
-- **Why verify the signature server-side?** After payment, Razorpay's
-  frontend script returns a `payment_id`, `order_id`, and `signature` to
-  the browser. Anyone could fake a "success" callback in devtools, so the
-  backend recomputes an HMAC SHA-256 signature using the secret key
-  (never exposed to the client) and compares it — only a match proves the
-  payment is genuine.
-- **Why re-price on the server?** The client only sends product `id` and
-  `qty`; the server looks up the real price from its own catalog before
-  creating the Razorpay order.
-- **Where this plugs into the existing cart project**: `CartContext`
-  mirrors the same state-management approach used for the wishlist/filters
-  in the product-page project — swap the in-memory `PRODUCTS` array and
-  `orders` Map for a real database (Mongo/Postgres) for production.
+## Possible next steps
 
-## Production notes (mention if asked "is this production ready?")
-
-- Replace the in-memory `orders` Map with a real database.
-- Add authentication so orders are tied to a user account.
-- Set up Razorpay **webhooks** (Settings → Webhooks in dashboard) as a
-  second, more reliable source of truth for payment confirmation — same
-  reasoning as Stripe webhooks: the browser callback can be missed if the
-  tab closes, but the webhook still fires.
-- Move keys to proper secrets management, not `.env` in git.
+Razorpay webhooks as a second source of payment truth, image uploads, product reviews, pagination, rate limiting on auth routes.
